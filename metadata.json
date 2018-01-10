@@ -1,0 +1,6 @@
+{
+    "uuid": "composectrl@kenit.cc",
+    "name": "docker-compose control",
+    "description": "Activates/Deactivates Docker Compose",
+    "max-instances": "-1"
+}

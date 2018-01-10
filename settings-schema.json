@@ -1,0 +1,22 @@
+{
+    "composeCmd": {
+        "type": "entry",
+        "default": "docker-compose",
+        "description": "docker-compose cmd"
+    },
+    "composeProjectName": {
+        "type": "entry",
+        "default": "some_project",
+        "description": "the name of project"
+    },
+    "composeFilePath": {
+        "type": "filechooser",
+        "default": "",
+        "description": "the docker-compose.yaml used in project"
+    },
+    "aliveContainerName": {
+        "type": "entry",
+        "default": "",
+        "description": "the container name in service to indentify if service is alive"
+    }
+}
