@@ -71,19 +71,27 @@ MyApplet.prototype = {
         }
     },
     _get_status: function(){
-        let cmd = [this.composeCmd, '-p', this.composeProjectName, '-f', this.composeFilePath, "exec", "-T", this.aliveContainerName , "echo", "ok"];
-        let [res, out] = GLib.spawn_sync(null, cmd, null, GLib.SpawnFlags.SEARCH_PATH, null);
-        global.log(out.toString());
-        let success = (out.toString().replace(/\W/g, '') == 'ok');
-        global.log(success);
-        this._set_icon(success);
-        return success;       
+        const services = this._getServiceList();
+        Promise.all(services.map((ele)=>{
+            return new Promise((resolve, reject) => {
+                let cmd = [this.composeCmd, '-p', this.composeProjectName, '-f', this.composeFilePath, "exec", "-T", ele , "echo", "ok"];
+                let [res, out] = GLib.spawn_sync(null, cmd, null, GLib.SpawnFlags.SEARCH_PATH, null);
+                global.log(ele + ": " + out.toString().replace(/\W/g, '')); 
+                if(out.toString().replace(/\W/g, '') == 'ok'){                
+                    resolve();
+                }else{
+                    reject();
+                }
+            });            
+        })).then(()=>{
+            this._set_icon(true);
+        }).catch(()=>{
+            this._set_icon(false);
+        });
     },
     _set_icon: function(status){
         let icon_name = (status ? 'Unknown' : 'Stopped');
         this.set_applet_icon_path(this._path + '/icons/128/' + icon_name + '.png');
-        //this.set_applet_label(status ? 'Running': 'Stopped');
-        return status;
     },
     _setMenu: function(){
         let upItem = new PopupMenu.PopupMenuItem(_("Up"));
@@ -106,6 +114,11 @@ MyApplet.prototype = {
     },
     _restart: function(){
         Util.spawn_async([this.composeCmd, '-p', this.composeProjectName, '-f', this.composeFilePath, 'restart'], () => this._get_status());
+    },
+    _getServiceList: function(){
+        let cmd = [this.composeCmd, '-p', this.composeProjectName, '-f', this.composeFilePath, "config", "--service"];        
+        let [res, out] = GLib.spawn_sync(null, cmd, null, GLib.SpawnFlags.SEARCH_PATH, null);
+        return out.toString().trim().split("\n")
     }
 };
 
