@@ -18,11 +18,14 @@ MyApplet.prototype = {
 
         this._path = metadata.path;
         this._bind_settings(instance_id);
+        this._setServiceList();
         this._get_service_status();
         this.menuManager = new PopupMenu.PopupMenuManager(this);
         this.menu = new Applet.AppletPopupMenu(this, orientation);
         this.menuManager.addMenu(this.menu);
         this._setMenu();
+
+        this._setRefreshTimeout();
     },
 
     on_applet_clicked: function() {
@@ -55,25 +58,30 @@ MyApplet.prototype = {
             "composeProjectName",
             this._on_settings_changed,
             null
-        );
+        );   
 
         settings.bindProperty(Settings.BindingDirection.IN,
-            "aliveContainerName",
-            "aliveContainerName",
-            this._on_settings_changed,
+            "refreshInteval",
+            "refreshInteval",
+            this._on_refreshInteval_changed,
             null
-        );     
+        );  
     },
     _on_settings_changed: function(){
+
         let pattern = new RegExp('^file:\/\/');
         if(pattern.test(this.composeFilePath)){            
             this.composeFilePath = this.composeFilePath.replace(pattern, '');
-            global.log(this.composeFilePath);
         }
+
+        this._setServiceList();
+    },
+    _on_refreshInteval_changed: function(){
+        GLib.source_remove(this._timeoutResource);
+        this._setRefreshTimeout();
     },
     _get_service_status: function(){
-        const services = this._getServiceList();
-        Promise.all(services.map((ele)=>{
+        Promise.all(this.serviceList.map((ele)=>{
             let cmd = [this.composeCmd, '-p', this.composeProjectName, '-f', this.composeFilePath, "exec", "-T", ele , "echo", "ok"];
 
             let [res, pid, in_fd, out_fd, err_fd]  = GLib.spawn_async_with_pipes(null, cmd, null, GLib.SpawnFlags.SEARCH_PATH, null);
@@ -108,9 +116,9 @@ MyApplet.prototype = {
         });
     },
     _set_applet_status: function(status){
-        let icon_name = (status ? 'Unknown' : 'Stopped');
+        let icon_name = (status ? 'Running' : 'Stopped');
         this.set_applet_icon_path(this._path + '/icons/128/' + icon_name + '.png');
-        this.set_applet_tooltip(_(status ? "All service are running" : "Partal or all service are down"));
+        this.set_applet_tooltip(_(status ? "All services are running" : "Partial or all services are down"));
     },
     _setMenu: function(){
         let upItem = new PopupMenu.PopupMenuItem(_("Up"));
@@ -141,10 +149,15 @@ MyApplet.prototype = {
     _check: function(){
         this._get_service_status();
     },
-    _getServiceList: function(){
+    _setServiceList: function(){
         let cmd = [this.composeCmd, '-p', this.composeProjectName, '-f', this.composeFilePath, "config", "--service"];        
         let [res, out] = GLib.spawn_sync(null, cmd, null, GLib.SpawnFlags.SEARCH_PATH, null);
-        return out.toString().trim().split("\n")
+        this.serviceList = out.toString().trim().split("\n");
+    },
+    _setRefreshTimeout: function(){
+        this._timeoutResource = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, this.refreshInteval * 60, () => {
+            this._get_service_status();
+        });
     }
 };
 

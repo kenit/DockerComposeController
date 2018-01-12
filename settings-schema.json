@@ -2,21 +2,25 @@
     "composeCmd": {
         "type": "entry",
         "default": "docker-compose",
-        "description": "docker-compose cmd"
+        "description": "docker-compose cmd:"
     },
     "composeProjectName": {
         "type": "entry",
         "default": "some_project",
-        "description": "the name of project"
+        "description": "the name of project:"
     },
     "composeFilePath": {
         "type": "filechooser",
         "default": "",
-        "description": "the docker-compose.yaml used in project"
+        "description": "the docker-compose.yaml used in project:",
+        "select-dir" : false
     },
-    "aliveContainerName": {
-        "type": "entry",
-        "default": "",
-        "description": "the container name in service to indentify if service is alive"
+    "refreshInteval": {
+        "type": "scale",
+        "default": 5,
+        "min": 1,
+        "max": 30,
+        "step": 1,
+        "description": "Refresh interval (min):"
     }
 }
