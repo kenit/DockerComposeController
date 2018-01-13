@@ -18,14 +18,16 @@ MyApplet.prototype = {
 
         this._path = metadata.path;
         this._bind_settings(instance_id);
-        this._setServiceList();
-        this._get_service_status();
+
         this.menuManager = new PopupMenu.PopupMenuManager(this);
         this.menu = new Applet.AppletPopupMenu(this, orientation);
         this.menuManager.addMenu(this.menu);
         this._setMenu();
 
-        this._setRefreshTimeout();
+        this._setServiceList().then(()=>{
+            this._get_service_status();
+            this._setRefreshTimeout();
+        })
     },
 
     on_applet_clicked: function() {
@@ -111,7 +113,6 @@ MyApplet.prototype = {
         })).then(() => {
             this._set_applet_status(true);
         }).catch(reason => {
-            global.log(reason);
             this._set_applet_status(false);
         });
     },
@@ -150,13 +151,36 @@ MyApplet.prototype = {
         this._get_service_status();
     },
     _setServiceList: function(){
-        let cmd = [this.composeCmd, '-p', this.composeProjectName, '-f', this.composeFilePath, "config", "--service"];        
-        let [res, out] = GLib.spawn_sync(null, cmd, null, GLib.SpawnFlags.SEARCH_PATH, null);
-        this.serviceList = out.toString().trim().split("\n");
+        let cmd = [this.composeCmd, '-p', this.composeProjectName, '-f', this.composeFilePath, "config", "--service"];
+
+        let [res, pid, in_fd, out_fd, err_fd]  = GLib.spawn_async_with_pipes(null, cmd, null, GLib.SpawnFlags.SEARCH_PATH, null);
+        let out_reader = new Gio.DataInputStream({
+            base_stream: new Gio.UnixInputStream({fd: out_fd})
+        });
+        this.serviceList = [];
+        return new Promise((resolve, reject) => {
+            let cb = (reader, res)=>{
+                
+                const [out, length] = reader.read_upto_finish(res);                
+                try{
+                    if(length > 0){
+                        this.serviceList.push(out.toString().trim());
+                        out_reader.read_upto_async("", -1, 0, null, cb, "");
+                    }else{
+                        resolve();
+                    }                    
+                }catch($e){
+                    reject($e);
+                }
+                
+            };
+            out_reader.read_upto_async("", -1, 0, null, cb, "");
+        })
     },
     _setRefreshTimeout: function(){
         this._timeoutResource = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, this.refreshInteval * 60, () => {
             this._get_service_status();
+            return true;
         });
     }
 };
@@ -164,4 +188,3 @@ MyApplet.prototype = {
 function main(metadata, orientation, panel_height, instance_id) {
     return new MyApplet(metadata, orientation, panel_height, instance_id);
 }
-
